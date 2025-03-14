@@ -29,11 +29,12 @@
 				<!-- 模型尺寸预设 -->
 				<v-row>
 					<v-col cols="12">预设结构：
-						<v-btn color="secondary" @click="setModelParams(24, 2048)" class="ma-1">1.5B</v-btn>
-						<v-btn color="secondary" @click="setModelParams(32, 2560)" class="ma-1">3B</v-btn>
-						<v-btn color="secondary" @click="setModelParams(32, 4096)" class="ma-1">7B</v-btn>
-						<v-btn color="secondary" @click="setModelParams(32, 5120)" class="ma-1">12B</v-btn>
-						<v-btn color="secondary" @click="setModelParams(61, 4096)" class="ma-1">14B</v-btn>
+						<v-btn v-for="preset in presets" :key="preset.name"
+							:color="currentPreset?.name === preset.name ? 'primary' : 'secondary'"
+							@click="setModelParams(preset)"
+							class="ma-1">
+							{{ preset.name }}
+						</v-btn>
 					</v-col>
 				</v-row>
 
@@ -135,7 +136,14 @@
 				microBsz: 4,
 				epochSteps: 10,
 				epochSave: 1,
-				command: ''
+				command: '',
+				presets: [
+					{ name: '1.5B', layer: 24, embd: 2048 },
+					{ name: '3B', layer: 32, embd: 2560 },
+					{ name: '7B', layer: 32, embd: 4096 },
+					{ name: '12B', layer: 32, embd: 5120 },
+					{ name: '14B', layer: 61, embd: 4096 }
+				]
 			}),
 			computed: {
 				projDir() {
@@ -143,6 +151,12 @@
 				},
 				dataFile() {
 					return `../RWKV-LM/RWKV-v5/${this.projName}`;
+				},
+				currentPreset() {
+					return this.presets.find(p =>
+						p.layer === this.nLayer &&
+						p.embd === this.nEmbd
+					);
 				}
 			},
 			watch: {
@@ -171,9 +185,9 @@
 				}
 			},
 			methods: {
-				setModelParams(layer, embd) {
-					this.nLayer = layer;
-					this.nEmbd = embd;
+				setModelParams(preset) {
+					this.nLayer = preset.layer;
+					this.nEmbd = preset.embd;
 				},
 				generateCommand() {
 					const params = [
