@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>RWKV v7 State微调调参工具</title>
+	<meta charset="utf-8">
+	<link href="static/mdi_font/css/materialdesignicons.min.css" rel="stylesheet">
+	<link href="static/vuetify.min.css" rel="stylesheet">
+</head>
+
+<body>
+	<div id="app">
+		<v-app>
+			<v-container>
+				<h1 class="mb-4">RWKV v7 State微调参数配置</h1>
+				请参阅：https://github.com/JL-er/RWKV-PEFT/
+				<br>
+				<!-- 加载模型路径 -->
+				<v-text-field v-model="loadModel" label="加载模型路径 (load_model)" prepend-icon="mdi-file"
+					required></v-text-field>
+
+				<!-- 项目名称 -->
+				<v-text-field v-model="projName" label="项目名称 (proj_name)" prepend-icon="mdi-folder"
+					required></v-text-field>
+
+				<!-- 上下文长度 -->
+				<v-row>
+					<v-col cols="12" sm="12">
+						<v-slider v-model="ctxLen" label="上下文长度 (ctx_len)" min="256" step="256" max="8192" thumb-label>
+							<template v-slot:append>
+								<v-text-field v-model="ctxLen" class="mt-0 pt-0" hide-details single-line type="number"
+									style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+				</v-row>
+
+				<!-- 层数和嵌入维度 -->
+				<v-row>
+					<v-col cols="12" sm="6">
+						<v-slider v-model="nLayer" label="层数 (n_layer)" min="1" max="48" thumb-label><template
+								v-slot:append>
+								<v-text-field v-model="nLayer" class="mt-0 pt-0" hide-details single-line type="number"
+									style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+					<v-col cols="12" sm="6">
+						<v-slider v-model="nEmbd" label="嵌入维度 (n_embd)" min="512" max="8192" thumb-label><template
+								v-slot:append>
+								<v-text-field v-model="nEmbd" class="mt-0 pt-0" hide-details single-line type="number"
+									style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+				</v-row>
+
+				<!-- 批次和训练参数 -->
+				<v-row>
+					<v-col cols="12" sm="6">
+						<v-slider v-model="microBsz" label="微批次大小 (micro_bsz)" min="1" max="32" thumb-label><template
+								v-slot:append>
+								<v-text-field v-model="microBsz" class="mt-0 pt-0" hide-details single-line
+									type="number" style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+					<v-col cols="12" sm="6">
+						<v-slider v-model="epochSteps" label="每轮步数 (epoch_steps)" min="1" max="100"
+							thumb-label><template v-slot:append>
+								<v-text-field v-model="epochSteps" class="mt-0 pt-0" hide-details single-line
+									type="number" style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+				</v-row>
+
+				<!-- 保存参数 -->
+				<v-row>
+					<v-col cols="12" sm="6">
+						<v-slider v-model="epochSave" label="保存间隔 (epoch_save)" min="1" max="10" thumb-label><template
+								v-slot:append>
+								<v-text-field v-model="epochSave" class="mt-0 pt-0" hide-details single-line
+									type="number" style="width: 60px"></v-text-field>
+							</template></v-slider>
+					</v-col>
+				</v-row>
+
+				<!-- 动态路径显示 -->
+				<v-card class="mb-4">
+					<v-card-title>动态路径预览</v-card-title>
+					<v-card-text>
+						<div>proj_dir: {{ projDir }}</div>
+						<div>data_file: {{ dataFile }}</div>
+					</v-card-text>
+				</v-card>
+
+				<!-- 生成命令按钮 -->
+				<v-btn color="primary" @click="generateCommand" block>
+					生成命令行参数
+				</v-btn>
+
+				<!-- 命令显示区域 -->
+				<v-textarea v-model="command" label="生成的命令" auto-grow class="mt-4"></v-textarea>
+				<v-btn color="primary" @click="copyCommand" block>
+					复制
+				</v-btn>
+			</v-container>
+		</v-app>
+	</div>
+
+	<script src="static/vue.min.js"></script>
+	<script src="static/vuetify.min.js"></script>
+	<script>
+		let app = new Vue({
+			el: '#app',
+			vuetify: new Vuetify(),
+			data: () => ({
+				loadModel: '~/RWKV7-G1-1.5B-16%25trained-20250308-ctx4k.pth',
+				projName: 'test',
+				ctxLen: 2048,
+				nLayer: 24,
+				nEmbd: 2048,
+				microBsz: 4,
+				epochSteps: 10,
+				epochSave: 1,
+				command: ''
+			}),
+			computed: {
+				projDir() {
+					return `../state_v7_1B5_${this.projName}`;
+				},
+				dataFile() {
+					return `../RWKV-LM/RWKV-v5/${this.projName}`;
+				}
+			},
+			watch: {
+				loadModel: (val) => app.saveToStorage(),
+				projName: (val) => app.saveToStorage(),
+				ctxLen: (val) => app.saveToStorage(),
+				nLayer: (val) => app.saveToStorage(),
+				nEmbd: (val) => app.saveToStorage(),
+				microBsz: (val) => app.saveToStorage(),
+				epochSteps: (val) => app.saveToStorage(),
+				epochSave: (val) => app.saveToStorage()
+			},
+			mounted() {
+				// 初始化时从localStorage加载
+				const saved = localStorage.getItem('params');
+				if (saved) {
+					const data = JSON.parse(saved);
+					this.loadModel = data.loadModel || this.loadModel;
+					this.projName = data.projName || '';
+					this.ctxLen = data.ctxLen || 2048;
+					this.nLayer = data.nLayer || 24;
+					this.nEmbd = data.nEmbd || 2048;
+					this.microBsz = data.microBsz || 4;
+					this.epochSteps = data.epochSteps || 10;
+					this.epochSave = data.epochSave || 1;
+				}
+			},
+			methods: {
+				generateCommand() {
+					const params = [
+						`--load_model ${this.loadModel}`,
+						`--proj_dir ${this.projDir}`,
+						`--data_file ${this.dataFile}`,
+						`--data_type binidx --vocab_size 65536`,
+						`--ctx_len ${this.ctxLen} --epoch_steps ${this.epochSteps} --epoch_count 10`,
+						`--epoch_begin 0 --epoch_save ${this.epochSave}`,
+						`--micro_bsz ${this.microBsz}`,
+						`--n_layer ${this.nLayer} --n_embd ${this.nEmbd}`,
+						`--pre_ffn 0 --head_qk 0 --lr_init 1e-3 --lr_final 1e-4`,
+						`--warmup_steps 1 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8`,
+						`--accelerator gpu --devices 1 --precision bf16 --strategy deepspeed_stage_1 --grad_cp 1`,
+						`--my_testing "x070"`,
+						`--train_type "state"  --dataload pad --op fla`
+					];
+
+					this.command = `cd RWKV-PEFT\npython test.py \\\n    ${params.join(' \\\n    ')}`;
+				},
+				copyCommand() {
+					copy(this.command)
+				},
+				saveToStorage() {
+					const data = {
+						loadModel: this.loadModel,
+						projName: this.projName,
+						ctxLen: this.ctxLen,
+						nLayer: this.nLayer,
+						nEmbd: this.nEmbd,
+						microBsz: this.microBsz,
+						epochSteps: this.epochSteps,
+						epochSave: this.epochSave
+					};
+					localStorage.setItem('params', JSON.stringify(data));
+				}
+			}
+		});
+
+		let copy = (s) => {
+			navigator.permissions
+				.query({ name: "clipboard-write" })
+				.then((result) => {
+					if (result.state == "granted" || result.state == "prompt") {
+						navigator.clipboard
+							.writeText(s.replace(/\n+/g, "\n"))
+							.then(() => {
+								alert("文本已经成功复制到剪切板");
+								console.log("文本已经成功复制到剪切板");
+							})
+							.catch((err) => { });
+					} else {
+						alert(
+							"当前无操作权限。请使用最新版本Chrome浏览器，并在浏览器高级设置-页面设置中允许访问剪切板"
+						);
+						console.log(
+							"当前无操作权限。请使用最新版本Chrome浏览器，并在浏览器高级设置-页面设置中允许访问剪切板"
+						);
+					}
+				});
+		};
+	</script>
+</body>
+
+</html>
