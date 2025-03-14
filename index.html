@@ -40,14 +40,14 @@
 				<!-- 层数和嵌入维度 -->
 				<v-row>
 					<v-col cols="12" sm="6">
-						<v-slider v-model="nLayer" label="层数 (n_layer)" min="1" max="48" thumb-label><template
+						<v-slider v-model="nLayer" label="层数 (n_layer)" min="8" max="64" thumb-label><template
 								v-slot:append>
 								<v-text-field v-model="nLayer" class="mt-0 pt-0" hide-details single-line type="number"
 									style="width: 60px"></v-text-field>
 							</template></v-slider>
 					</v-col>
 					<v-col cols="12" sm="6">
-						<v-slider v-model="nEmbd" label="嵌入维度 (n_embd)" min="512" max="8192" thumb-label><template
+						<v-slider v-model="nEmbd" label="嵌入维度 (n_embd)" min="2048" step="256" max="8192" thumb-label><template
 								v-slot:append>
 								<v-text-field v-model="nEmbd" class="mt-0 pt-0" hide-details single-line type="number"
 									style="width: 60px"></v-text-field>
